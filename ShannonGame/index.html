@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light" data-calm="0" data-bigkeys="0" data-layout="abc" data-size="phone">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>The Shannon Game</title>
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/play.css">
+<link rel="stylesheet" href="css/board.css">
+<link rel="stylesheet" href="css/detective.css">
+</head>
+<body>
+<!-- One root for the whole app; ui/screens/* draw into <main> inside it (src/js/app.js). -->
+<div id="app"></div>
+<!-- Polite screen-reader announcements (SG.ui.a11y.announce) -->
+<div id="sg-live" class="sg-visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
+<!-- Modal dialogs (SG.ui.dialogs) -->
+<div id="dialog-root"></div>
+<noscript>This game needs JavaScript to play. Please turn it on.</noscript>
+
+<!-- Load order = docs/design/01-architecture.md section 4 (classic scripts, no modules, works from file://) -->
+<script src="js/config.js"></script>
+
+<script src="js/data/corpus-1.js"></script>
+<script src="js/data/corpus-2.js"></script>
+<script src="js/data/corpus-3.js"></script>
+<script src="js/data/corpus-4.js"></script>
+<script src="js/data/puzzles.js"></script>
+<script src="js/data/blocklist.js"></script>
+<script src="js/data/copy.js"></script>
+
+<script src="js/core/rng.js"></script>
+<script src="js/core/alphabet.js"></script>
+<script src="js/core/model.js"></script>
+<script src="js/core/info.js"></script>
+<script src="js/core/twin.js"></script>
+<script src="js/core/bits.js"></script>
+<script src="js/core/content.js"></script>
+<script src="js/core/game.js"></script>
+<script src="js/core/badges.js"></script>
+<script src="js/core/storage.js"></script>
+
+<script src="js/ui/dom.js"></script>
+<script src="js/ui/fmt.js"></script>
+<script src="js/ui/icons.js"></script>
+<script src="js/ui/theme.js"></script>
+<script src="js/ui/a11y.js"></script>
+<script src="js/ui/sound.js"></script>
+<script src="js/ui/robo.js"></script>
+<script src="js/ui/charts.js"></script>
+<script src="js/ui/keyboard.js"></script>
+<script src="js/ui/dialogs.js"></script>
+
+<script src="js/ui/screens/home.js"></script>
+<script src="js/ui/screens/onboarding.js"></script>
+<script src="js/ui/screens/help.js"></script>
+<script src="js/ui/screens/settings.js"></script>
+<script src="js/ui/screens/setup.js"></script>
+<script src="js/ui/screens/twoplayer.js"></script>
+<script src="js/ui/screens/play.js"></script>
+<script src="js/ui/screens/roboplays.js"></script>
+<script src="js/ui/screens/board.js"></script>
+<script src="js/ui/screens/journey.js"></script>
+<script src="js/ui/screens/history.js"></script>
+<script src="js/ui/screens/detective.js"></script>
+
+<script src="js/app.js"></script>
+</body>
+</html>

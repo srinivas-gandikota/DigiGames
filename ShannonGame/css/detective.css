@@ -1,0 +1,143 @@
+/* detective.css - the Bit Detective screen (design 03 section 3.10).
+ * Builds on the tokens and shared classes of base.css (.sg-btn, .sg-card, .sg-note, .sg-robo, charts).
+ * Layout budget: phone 360 px -> 7 tile columns of >= 44 px (UX-061); 6 columns below 360 px; 9 from 600 px.
+ * Colour never carries meaning alone: ruled-out tiles also show a cross, the chosen tile a cut mark and a
+ * thick left edge, yes/no answers an icon and a word, code bits a digit. Calm motion: no transforms move. */
+
+.sg-det { max-width: 640px; margin: 0 auto; }
+.sg-det .sg-robo { align-items: center; }
+.sg-det .sg-robo .sg-bubble { flex: 1 1 auto; max-width: 340px; }
+.sg-det h1 { margin-bottom: var(--sp-1); }
+.sg-det-goal { margin: 0; color: var(--sg-ink-soft); font-weight: 700; }
+
+/* ---- counters (always visible, GP-062) ---- */
+.sg-det-counters { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--sp-1) var(--sp-4); font-family: var(--font-display); font-weight: 800; font-size: 1rem; }
+.sg-det-stat { display: inline-block; }
+
+/* ---- the 27 tiles ---- */
+.sg-det-strip { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
+.sg-det-tile {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-width: 44px; min-height: 52px; padding: 0;
+  font-family: var(--font-letters); font-weight: 700; font-size: 1.25rem; line-height: 1;
+  color: var(--sg-ink); background: var(--sg-primary-soft);
+  border: 2px solid var(--sg-tile-line); border-radius: var(--r-sm);
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+  transition: background-color var(--dur-fast), box-shadow var(--dur-fast);
+}
+.sg-det-tile--space { grid-column: span 2; }
+.sg-det-tile--space { flex-direction: row; gap: var(--sp-1); }
+.sg-det-tile .sg-det-word { font-size: .8125rem; letter-spacing: .02em; }
+.sg-det-tile .sg-det-glyph { font-size: 1rem; line-height: 1; }
+.sg-det-x { display: none; position: absolute; top: 2px; right: 2px; line-height: 0; color: var(--sg-key-used-ink); }
+
+/* ruled out: dimmed AND crossed (not colour only) */
+.sg-det-tile.is-out { background: var(--sg-key-used-bg); color: var(--sg-key-used-ink); border-color: var(--sg-key-used-line); border-style: dashed; }
+.sg-det-tile.is-out .sg-det-x { display: block; }
+/* the first tile still possible is bright but cannot split anything (GP-061): dotted edge, no pointer cue */
+.sg-det-tile.is-first { border-style: dotted; cursor: default; }
+.sg-det-tile.is-out, .sg-det-tile[aria-disabled="true"] { cursor: default; }
+
+/* the proposed divider: a thick edge on the left of the chosen tile plus a small cut mark above it */
+.sg-det-tile.is-selected {
+  background: var(--sg-cursor-bg); border-color: var(--sg-cursor-line);
+  box-shadow: inset 5px 0 0 var(--sg-cursor-line);
+}
+.sg-det-tile.is-selected::before {
+  content: ""; position: absolute; top: 2px; left: 7px; width: 0; height: 0;
+  border: 5px solid transparent; border-top-color: var(--sg-cursor-line); border-bottom: 0;
+}
+
+/* the secret once found: the only bright tile, enlarged (static under calm: heavier border instead) */
+.sg-det-tile.is-secret { z-index: 1; border-width: 3px; border-color: var(--sg-good); background: var(--sg-surface); transform: scale(1.12); box-shadow: var(--shadow-pop); }
+:root[data-calm="1"] .sg-det-tile.is-secret { transform: none; border-width: 4px; }
+:root[data-theme="hc"] .sg-det-tile.is-secret { box-shadow: none; }
+
+@media (max-width: 359px) { .sg-det-strip { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+@media (min-width: 600px) {
+  .sg-det-strip { grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 6px; }
+  .sg-det-tile { min-height: 64px; font-size: 1.5rem; }
+  .sg-det-tile--space { grid-column: span 1; }
+  .sg-det-tile .sg-det-glyph { display: none; }
+}
+
+/* ---- the question bar ---- */
+.sg-det-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4); background: var(--sg-surface); border: var(--border); border-radius: var(--r-lg);
+}
+.sg-det-q { flex: 1 1 8rem; margin: 0; min-height: 3rem; display: flex; align-items: center; font-family: var(--font-display); font-weight: 800; font-size: 1.25rem; }
+.sg-det-q.is-hint { font-weight: 600; font-size: 1rem; color: var(--sg-ink-soft); }
+.sg-det-ask { flex: 0 0 auto; min-width: 6.5rem; }
+
+/* ---- found it ---- */
+.sg-det-found { display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); text-align: center; padding: var(--sp-3) var(--sp-4); background: var(--sg-surface); border: var(--border); border-radius: var(--r-lg); }
+.sg-det-found h2 { margin: 0; }
+.sg-det-found p { margin: 0; }
+
+/* ---- question log ---- */
+.sg-det-log h2 { font-size: var(--fs-h3); margin-bottom: var(--sp-2); }
+.sg-det-loglist { list-style: decimal; padding-left: 1.75rem; }
+.sg-det-loglist li { padding: 2px 0; }
+.sg-det-ans { display: inline-flex; align-items: center; gap: 2px; font-weight: 800; }
+.sg-det-ans.is-yes { color: var(--sg-good); }
+.sg-det-ans.is-no { color: var(--sg-ink); }
+.sg-det-sizes { color: var(--sg-ink-soft); white-space: nowrap; }
+
+/* ---- result ---- */
+.sg-det-score { display: flex; align-items: center; gap: var(--sp-4); }
+.sg-det-bigtile {
+  flex: none; display: flex; align-items: center; justify-content: center; min-width: 72px; height: 88px; padding: 0 var(--sp-2);
+  font-family: var(--font-letters); font-weight: 700; font-size: 2.5rem;
+  background: var(--sg-surface); border: 3px solid var(--sg-good); border-radius: var(--r-md);
+}
+.sg-det-lines { min-width: 0; }
+.sg-det-line { margin: 0 0 var(--sp-1); font-family: var(--font-display); font-weight: 800; font-size: 1.25rem; }
+.sg-det-never { margin: var(--sp-2) 0 0; color: var(--sg-ink-soft); font-weight: 700; }
+.sg-det-naming { font-size: 1.0625rem; }
+.sg-det-naming strong { font-size: 1.25rem; }
+
+.sg-det-ladders { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-4); }
+.sg-det-ladder { padding: var(--sp-2); }
+.sg-det-chartbox { min-width: 0; width: 100%; overflow: hidden; }
+@media (min-width: 760px) {
+  .sg-det--result { max-width: 880px; }
+  .sg-det-ladders { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* the 0/1 secret code */
+.sg-det-codetitle { margin: 0 0 var(--sp-2); font-weight: 700; }
+.sg-det-coderow { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); margin-top: var(--sp-2); }
+.sg-det-codewho { min-width: 8rem; font-weight: 700; color: var(--sg-ink-soft); }
+.sg-det-code { display: inline-flex; flex-wrap: wrap; gap: var(--sp-1); }
+.sg-det-bit {
+  display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px;
+  font-family: var(--font-letters); font-weight: 700; font-size: 1.125rem;
+  border: 2px solid var(--sg-ink); border-radius: var(--r-sm);
+}
+.sg-det-bit.is-one { background: var(--sg-primary); color: var(--sg-primary-ink); border-color: var(--sg-primary); }
+.sg-det-bit.is-zero { background: var(--sg-surface); color: var(--sg-ink); }
+
+.sg-det-toast { padding: var(--sp-2) var(--sp-4); background: var(--sg-note-bg); color: var(--sg-note-ink); border: 2px solid var(--sg-note-ink); border-radius: var(--r-pill); font-weight: 800; text-align: center; }
+.sg-det-toast p { margin: 0; }
+
+/* ---- the "try the middle" trick ---- */
+.sg-det-trick h2, .sg-det-summary h2 { font-size: var(--fs-h3); }
+.sg-det-trickstage { margin: var(--sp-3) 0; outline-offset: 4px; }
+.sg-det-frame { margin: 0 0 var(--sp-3); }
+.sg-det-frame figcaption { margin-top: var(--sp-2); font-weight: 700; }
+.sg-det-mini { display: grid; grid-template-columns: repeat(27, minmax(0, 1fr)); gap: 1px; padding-top: 8px; }
+.sg-det-cell { position: relative; height: 26px; background: var(--sg-surface); border: 1px solid var(--sg-line); border-radius: 2px; opacity: .55; }
+.sg-det-cell.is-live { background: var(--sg-primary-soft); border-color: var(--sg-ink); opacity: 1; }
+.sg-det-cell.is-cut { box-shadow: inset 4px 0 0 var(--sg-cursor-line); }
+.sg-det-cell.is-cut::before {
+  content: ""; position: absolute; top: -8px; left: 0; width: 0; height: 0;
+  border: 5px solid transparent; border-top-color: var(--sg-cursor-line); border-bottom: 0;
+}
+.sg-det-trickstage .sg-det-frame { transition: opacity var(--dur-fast); }
+
+/* ---- actions ---- */
+.sg-det-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); }
+.sg-det-actions .sg-btn--big { flex: 1 1 14rem; }
+.sg-det-actions .sg-btn--link { flex: 1 1 100%; }
+@media (min-width: 600px) { .sg-det-actions .sg-btn--link { flex: 0 1 auto; } }

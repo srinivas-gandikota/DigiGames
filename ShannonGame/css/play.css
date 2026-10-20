@@ -1,0 +1,232 @@
+/* The Shannon Game - play.css: the Play screen and the Robo-plays screen (design 03 sections 3.6, 3.7, 5.2).
+ * Builds on the tokens and classes in base.css (keys, buttons, bubble, aligned rows, bands). Prefixes:
+ *   sg-pl-*  Play screen        sg-rp-*  Robo plays screen
+ * Calm motion is handled by base.css (all animations off); here the sparkles are simply hidden then and the
+ * information stays in static form (toast chip with an icon, the badge number).
+ */
+
+/* ============================================================ Play: shell tightening */
+/* Play must fit a 360 x 640 phone without scrolling (NF-011): less padding around the main area. */
+.sg-screen--play { padding-top: var(--sp-2); padding-bottom: var(--sp-2); }
+
+.sg-play { position: relative; }
+
+/* One grid, three arrangements: phone (single column), landscape phone, tablet/desktop with a right rail.
+   The tally, Robo row and Show me button are separate grid items so they can move without extra wrappers. */
+.sg-pl-main {
+  display: grid; gap: 6px; grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "card" "tally" "robo" "give" "kb";
+}
+.sg-pl-card { grid-area: card; }
+.sg-pl-tally { grid-area: tally; }
+.sg-pl-robo { grid-area: robo; }
+.sg-pl-give-row { grid-area: give; }
+.sg-pl-kb { grid-area: kb; }
+
+/* ============================================================ Play: sentence card */
+.sg-pl-card {
+  display: flex; flex-direction: column; min-height: 0;
+  /* 52 top bar + paddings + tally 44 + Robo 56 + Show me 48 + keyboard 272 + gaps ~ 520 px: the card takes the rest */
+  height: clamp(104px, calc(100vh - 528px), 168px);
+  height: clamp(104px, calc(100dvh - 528px), 168px);
+  position: relative; margin-top: 8px; padding: 0 var(--sp-3); background: var(--sg-surface); border: var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-1);
+}
+.sg-pl-captionrow {   /* sits on the card's top border like a fieldset legend: costs no height on a phone */
+  position: absolute; top: -11px; left: var(--sp-3); right: var(--sp-3); display: flex; justify-content: space-between; gap: var(--sp-3);
+  line-height: 20px; pointer-events: none;
+}
+.sg-pl-caption, .sg-pl-hint { margin: 0; padding: 0 6px; background: var(--sg-surface); border-radius: 6px; font-size: var(--fs-caption); font-weight: 700; }
+.sg-pl-caption { color: var(--sg-ink-soft); }
+.sg-pl-hint { color: var(--sg-note-ink); text-align: right; }
+.sg-pl-hint:empty { display: none; }
+.sg-pl-peekline { margin: 10px 0 -6px; font-size: var(--fs-caption); color: var(--sg-ink-soft); }
+
+.sg-pl-panel {
+  position: relative; flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  /* top padding is the lane for the cursor arrow and the "Got it in N!" toast */
+  padding: 22px 0 4px; font-family: var(--font-letters);
+}
+.sg-pl-panel:focus-visible { outline-offset: -3px; }
+.sg-pl-flow { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 18px 5px; }
+.sg-pl-word { display: inline-flex; flex-wrap: nowrap; align-items: flex-end; gap: 2px; border-radius: 4px; }
+.sg-pl-word.is-pulse { animation: sg-pl-underline 700ms ease-out 1; }
+@keyframes sg-pl-underline { 0% { box-shadow: 0 3px 0 var(--sg-good); } 100% { box-shadow: 0 3px 0 transparent; } }
+
+/* A finished position: 24 x 36 on phone, 30 x 46 from tablet; the letter never shrinks below the 28 px of UX-006 */
+.sg-pl-cell {
+  position: relative; display: inline-flex; align-items: center; justify-content: center;
+  min-width: 24px; height: 36px; padding: 0 1px; border-radius: 6px;
+  font-size: var(--fs-sentence); font-weight: 700; line-height: 1; color: var(--sg-ink);
+}
+.sg-pl-cell.is-space { min-width: 14px; padding: 0; border-bottom: 3px dotted var(--sg-line); border-radius: 0; color: var(--sg-faint-ink); }
+.sg-pl-cell.is-space .sg-pl-ch { font-size: 1.25rem; }
+.sg-pl-cell.is-peeked { border: 2px dashed var(--sg-ink); background-image: repeating-linear-gradient(45deg, rgba(27, 36, 64, .16) 0 2px, transparent 2px 6px); }
+.sg-pl-ch { display: block; }
+
+/* guess-count badge (UX-007): small number, colour from the surprise bands but always readable as a number */
+.sg-pl-badge {
+  position: absolute; top: -9px; right: -7px; display: inline-flex; align-items: center; gap: 1px;
+  min-width: 14px; height: 14px; padding: 0 3px; justify-content: center;
+  font-family: var(--font-ui); font-size: 11px; font-weight: 800; line-height: 1;
+  border: 1.5px solid var(--sg-tile-line); border-radius: 7px; transform-origin: top right;
+}
+.sg-pl-cell.is-space .sg-pl-badge { top: -13px; right: -9px; }
+.sg-pl-badge svg { width: 9px; height: 9px; }
+.sg-pl-eye {
+  position: absolute; bottom: -7px; left: -6px; display: flex; align-items: center; justify-content: center;
+  width: 15px; height: 15px; background: var(--sg-surface); color: var(--sg-ink); border: 1.5px solid var(--sg-ink); border-radius: 50%;
+}
+
+/* the cursor: fill + thick outline + arrow, so it never relies on colour alone (UX-006) */
+.sg-pl-cursor { background: var(--sg-cursor-bg); border: 3px solid var(--sg-cursor-line); animation: sg-pulse 1.6s ease-in-out infinite; }
+.sg-pl-cursor::before {
+  content: "\25BC"; position: absolute; top: -19px; left: 50%; transform: translateX(-50%);
+  color: var(--sg-cursor-line); font-size: 1rem; line-height: 1;
+}
+
+/* badge pop: bigger discovery, bigger pop (UX-021) */
+.sg-pl-cell.is-cue-first, .sg-pl-cell.is-cue-nice { --pop: 1.6; }
+.sg-pl-cell.is-cue-tricky { --pop: 2.2; }
+.sg-pl-cell.is-cue-sneaky { --pop: 2.6; }
+.sg-pl-cell.is-new .sg-pl-badge { animation: sg-pl-badgepop 450ms var(--ease-spring) 1; }
+@keyframes sg-pl-badgepop { 0% { transform: scale(var(--pop, 1.6)); } 100% { transform: scale(1); } }
+
+/* Peephole fog: ONE tile of fixed size, whatever it hides (GP-076) */
+.sg-pl-fog { display: inline-flex; flex: none; align-items: flex-end; width: 56px; height: 36px; }
+.sg-pl-fog svg { width: 56px; height: 36px; }
+.sg-pl-fog-shape { fill: var(--sg-fog); stroke: var(--sg-line); stroke-width: 2; stroke-dasharray: 5 3; stroke-linejoin: round; }
+
+/* effects layer: lives beside the redrawn text so a quick next guess does not wipe a toast */
+.sg-pl-fxlayer { position: absolute; top: 0; left: 0; width: 100%; height: 0; overflow: visible; pointer-events: none; }
+.sg-pl-toast {
+  position: absolute; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; z-index: 2;
+  padding: 0 8px 0 6px; font-family: var(--font-ui); font-size: .875rem; font-weight: 800; line-height: 1.25;
+  background: var(--sg-sun); color: var(--sg-ink); border: 2px solid var(--sg-ink); border-radius: var(--r-pill);
+  transform: translateY(-100%); box-shadow: var(--shadow-1);
+}
+.sg-pl-toast.is-cue-tricky { font-size: 1rem; padding: 1px 10px 1px 8px; }
+.sg-pl-toast.is-cue-sneaky { font-size: 1.125rem; padding: 2px 12px 2px 9px; background: var(--sg-band-2); }
+.sg-pl-fx { position: absolute; width: 0; height: 0; z-index: 1; }
+.sg-pl-spark {
+  position: absolute; left: -4px; top: -4px; width: 8px; height: 8px; background: var(--sg-sun); border: 1.5px solid var(--sg-ink);
+  animation: sg-pl-burst var(--fx-ms, 500ms) var(--ease-out) 1 forwards;
+}
+@keyframes sg-pl-burst {
+  0% { transform: translate(0, 0) rotate(45deg) scale(.4); opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) rotate(225deg) scale(1); opacity: 0; }
+}
+.sg-pl-ringpulse {
+  position: absolute; left: -56px; top: -56px; width: 112px; height: 112px; border: 3px solid var(--sg-cursor-line); border-radius: 50%;
+  animation: sg-pl-ring var(--fx-ms, 700ms) var(--ease-out) 1 forwards;
+}
+@keyframes sg-pl-ring { 0% { transform: scale(.1); opacity: .9; } 100% { transform: scale(1); opacity: 0; } }
+/* calm motion: no sparkle layer at all; the toast chip with its icon carries the cue statically */
+:root[data-calm="1"] .sg-pl-fx { display: none; }
+
+/* ============================================================ Play: tally (GP-039: small, never covering text or keys) */
+.sg-pl-tally { display: flex; align-items: center; gap: var(--sp-2); min-height: 44px; }
+.sg-pl-tally-main { flex: 1; min-width: 0; }
+.sg-pl-tally-text { margin: 0 0 2px; font-size: .8125rem; font-weight: 700; color: var(--sg-ink-soft); }
+.sg-pl-tally-bars { min-height: 18px; }
+.sg-pl-tally.is-collapsed .sg-pl-tally-bars { display: none; }
+.sg-pl-tally-toggle { width: 44px; height: 44px; }
+
+/* ============================================================ Play: Robo row, Show me, keyboard */
+.sg-pl-robo { min-height: 56px; display: flex; align-items: center; }
+.sg-pl-robo .sg-robo { width: 100%; gap: var(--sp-2); }
+.sg-pl-robo .sg-robo-svg { width: 48px; height: auto; }
+.sg-pl-robo .sg-bubble { flex: 1; max-width: none; padding: var(--sp-2) var(--sp-3); font-size: .9375rem; }
+.sg-pl-give-row { display: flex; justify-content: flex-end; min-height: 48px; }
+.sg-pl-give { min-height: 48px; max-width: 100%; }
+.sg-pl-give[aria-disabled="true"] { box-shadow: none; }
+.sg-pl-kb { min-width: 0; }
+
+/* Pause overlay (UX-035): hides the sentence and keys; nothing runs underneath */
+.sg-pl-pause {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-4);
+  min-height: 60vh; padding: var(--sp-5); text-align: center;
+}
+.sg-pl-pause-text { margin: 0; font-family: var(--font-display); font-size: var(--fs-h2); font-weight: 700; }
+
+/* ============================================================ Play: tablet and desktop (rail on the right) */
+@media (min-width: 600px) {
+  .sg-pl-card { height: clamp(168px, calc(100dvh - 560px), 220px); padding-left: var(--sp-4); padding-right: var(--sp-4); }
+  .sg-pl-cell { min-width: 30px; height: 46px; }
+  .sg-pl-cell.is-space { min-width: 18px; }
+  .sg-pl-panel { padding-top: 30px; }
+  .sg-pl-flow { gap: 18px 6px; }
+  .sg-pl-robo .sg-robo-svg { width: 64px; }
+  .sg-pl-fog, .sg-pl-fog svg { height: 46px; }
+}
+@media (min-width: 1024px) {
+  .sg-pl-main {
+    gap: var(--sp-4) var(--sp-5); grid-template-columns: minmax(0, 1fr) 300px;
+    grid-template-areas: "card robo" "card tally" "kb give";
+    align-items: start;
+  }
+  .sg-pl-card { height: auto; min-height: 220px; align-self: stretch; }
+  .sg-pl-panel { min-height: 160px; }
+  .sg-pl-robo { align-items: flex-start; }
+  .sg-pl-robo .sg-robo { flex-direction: column; align-items: center; text-align: center; }
+  .sg-pl-robo .sg-robo-svg { width: 120px; }
+  .sg-pl-robo .sg-bubble { width: 100%; }
+  .sg-pl-robo .sg-bubble::before { display: none; }
+  .sg-pl-give-row { justify-content: stretch; }
+  .sg-pl-give { width: 100%; }
+}
+
+/* Landscape phones and short screens: sentence and Robo on the left, keyboard on the right (design 3.6) */
+@media (orientation: landscape) and (max-height: 520px) {
+  .sg-pl-main {
+    gap: var(--sp-2) var(--sp-4); grid-template-columns: minmax(0, 1fr) minmax(280px, 48%);
+    grid-template-areas: "card kb" "robo kb" "tally give"; align-items: start;
+  }
+  .sg-pl-card { height: auto; min-height: 96px; max-height: 200px; }
+  .sg-pl-give-row { justify-content: stretch; }
+  .sg-pl-give { width: 100%; }
+}
+
+/* Compact rule (design 3.6.2): real phones with browser chrome, short viewport */
+@media (max-height: 600px) and (max-width: 599px) {
+  .sg-pl-main { gap: 4px; }
+  .sg-pl-card { height: clamp(84px, calc(100dvh - 470px), 150px); }
+  .sg-pl-tally-bars { display: none; }
+  .sg-pl-tally { min-height: 36px; }
+  .sg-pl-tally-toggle { width: 36px; height: 36px; }
+  .sg-pl-robo { min-height: 48px; }
+  .sg-pl-robo .sg-robo-svg { width: 40px; }
+  .sg-pl-give-row, .sg-pl-give { min-height: 44px; }
+}
+
+/* ============================================================ Finished ("You finished!") */
+.sg-pl-done { display: flex; flex-direction: column; align-items: center; gap: var(--sp-3); max-width: 640px; margin: 0 auto; padding-top: var(--sp-4); text-align: center; }
+.sg-pl-done > * { margin-top: 0; margin-bottom: 0; }
+.sg-pl-fullsentence {
+  width: 100%; padding: var(--sp-4); font-family: var(--font-letters); font-size: var(--fs-sentence); font-weight: 700; line-height: 1.4;
+  overflow-wrap: anywhere; background: var(--sg-surface); border: var(--border); border-radius: var(--r-lg);
+}
+.sg-pl-done .sg-note { align-self: stretch; justify-content: center; }
+
+/* ============================================================ Robo plays */
+.sg-rp { display: flex; flex-direction: column; gap: var(--sp-4); max-width: 920px; margin: 0 auto; }
+.sg-rp > * { flex-shrink: 0; }   /* never squash the chart inside the flex column */
+.sg-rp-head { display: flex; flex-direction: column; gap: var(--sp-2); }
+.sg-rp-head h1 { margin-bottom: 0; }
+.sg-rp-head .sg-robo { margin-top: var(--sp-2); }
+.sg-rp-chart { padding: var(--sp-3); background: var(--sg-surface); border: var(--border); border-radius: var(--r-lg); overflow-x: auto; }
+/* the moving ring is a column outline (a shape, not a colour) */
+.sg-rp-chart .sg-acell { transition: opacity var(--dur-fast) linear; }
+.sg-acell.is-remark { outline: 3px dashed var(--sg-cursor-line); outline-offset: 1px; }
+.sg-acell--letter.is-remark { outline: none; border-bottom: 3px solid var(--sg-cursor-line); border-radius: 0; }
+.sg-rp-totals { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-5); margin: 0; font-family: var(--font-display); font-size: var(--fs-h3); font-weight: 800; }
+.sg-rp-remarks { display: flex; flex-direction: column; gap: var(--sp-3); }
+.sg-rp-remark { display: flex; align-items: center; gap: var(--sp-3); }
+.sg-rp-remark .sg-bubble { max-width: none; flex: 1; }
+.sg-rp-note { margin: 0; }
+.sg-rp-bottom { align-items: center; }
+/* base.css declares .sg-swatch after the band classes, so its plain background wins: restore the band fills in the legend */
+.sg-rp .sg-swatch.sg-band-0 { background-color: var(--sg-band-0); }
+.sg-rp .sg-swatch.sg-band-1 { background-color: var(--sg-band-1); }
+.sg-rp .sg-swatch.sg-band-2 { background-color: var(--sg-band-2); }
+.sg-rp .sg-swatch.sg-band-3 { background-color: var(--sg-band-3); }
+.sg-rp .sg-swatch.sg-band-4 { background-color: var(--sg-band-4); }
