@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #fff;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+            font-size: 2.5rem;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .game-info {
+            display: flex;
+            gap: 40px;
+            margin-bottom: 20px;
+            font-size: 1.2rem;
+        }
+
+        .game-info span {
+
+            width: 230px;
+        }
+
+        .game-info span {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px 20px;
+            border-radius: 8px;
+        }
+
+        #gameCanvas {
+            border: 4px solid #4a4a6a;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .controls {
+            margin-top: 20px;
+            text-align: center;
+            color: #aaa;
+        }
+
+        .controls kbd {
+            background: #333;
+            padding: 5px 10px;
+            border-radius: 4px;
+            margin: 0 3px;
+            font-family: monospace;
+        }
+
+        .game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            display: none;
+        }
+
+        .game-over h2 {
+            color: #ff6b6b;
+            margin-bottom: 20px;
+        }
+
+        .game-over button {
+            background: #4ecdc4;
+            color: #1a1a2e;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.2s, background 0.2s;
+        }
+
+        .game-over button:hover {
+            background: #45b7aa;
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🐍 Snake Game</h1>
+
+    <div class="game-info">
+        <span>Score: <strong id="score">0</strong></span>
+        <span>High Score: <strong id="highScore">0</strong></span>
+        <span>Speed: <strong id="gameSpeed">Normal</strong></span>
+    </div>
+
+    <canvas id="gameCanvas" width="600" height="600"></canvas>
+
+    <div class="controls">
+        <p>Use <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> or <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd>
+            <kbd>D</kbd> to move
+        </p>
+        <p>Press <kbd>Space</kbd> to pause | <kbd>R</kbd> to restart | <kbd>T</kbd> to toggle auto-pilot 🤖</p>
+        <p>Speed: <kbd>1</kbd>-<kbd>9</kbd> to adjust (1=fastest, 9=slowest) | <kbd>[</kbd>/<kbd>]</kbd> fine-tune</p>
+    </div>
+
+    <div class="game-over" id="gameOver">
+        <h2>Game Over!</h2>
+        <p style="margin-bottom: 20px; font-size: 1.2rem;">Final Score: <span id="finalScore">0</span></p>
+        <button onclick="resetGame()">Play Again</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Game settings
+        const gridSize = 20;
+        const tileCount = canvas.width / gridSize;
+
+        // Speed: 5x slower than normal (normal would be ~100ms)
+        let gameSpeed = 500; // 500ms = 5x slower than typical 100ms
+        const minSpeed = 25;  // Fastest (50ms)
+        const maxSpeed = 1000; // Slowest (1000ms)
+        const slomoSpeed = 50;
+        let bkupGameSpeed = 0;
+        let gameLoop = null;
+        const loopLimitScore = 4000;
+
+        let snake = [];
+        let food = {};
+        let direction = {x: 0, y: 0};
+        let nextDirection = {x: 0, y: 0};
+        let score = 0;
+        let highScore = localStorage.getItem('snakeHighScore') || 0;
+        let isPaused = false;
+        let isGameOver = false;
+        let cheatMode = false;
+        let loopSnakeMode = false;
+        let loopDir = 'aclock';
+        let cheatPath = [];
+
+        document.getElementById('highScore').textContent = highScore;
+
+        function getSpeedLabel(ms) {
+            if (ms <= 100) return '⚡⚡⚡ Ultra';
+            if (ms <= 200) return '⚡⚡ Fast';
+            if (ms <= 300) return '⚡ Quick';
+            if (ms <= 400) return 'Normal';
+            if (ms <= 500) return 'Relaxed';
+            if (ms <= 600) return 'Slow';
+            if (ms <= 700) return '⚪ Very Slow';
+            if (ms <= 800) return '⚪⚪ Turtle';
+            return '⚪⚪⚪ Snail';
+        }
+        function getLoopString() {
+            if (loopSnakeMode)
+                return (loopDir == 'aclock') ? "L" : "R";
+            return ""
+        }
+
+        function updateSpeedDisplay() {
+            document.getElementById('gameSpeed').textContent = getLoopString() + getSpeedLabel(gameSpeed);
+        }
+
+        function setGameSpeed(newSpeed) {
+            // Clamp speed to valid range
+            newSpeed = Math.max(minSpeed, Math.min(maxSpeed, newSpeed));
+
+            // Clear existing loop and start new one with updated speed
+            if (gameLoop) {
+                clearInterval(gameLoop);
+            }
+            gameSpeed = newSpeed;
+            updateSpeedDisplay();
+            gameLoop = setInterval(update, gameSpeed);
+        }
+        function backUpSpeed(newSpeed) {
+            if (bkupGameSpeed == 0) {
+                bkupGameSpeed = gameSpeed;
+                setGameSpeed(newSpeed);
+            }
+        }
+        function restoreSpeed() {
+            if (bkupGameSpeed != 0) {
+                if (gameSpeed == slomoSpeed)
+                    setGameSpeed(bkupGameSpeed);
+                //else speed changed by user
+                bkupGameSpeed = 0;
+            }
+        }
+
+        function initGame() {
+            snake = [
+                {x: 10, y: 10},
+                {x: 9, y: 10},
+                {x: 8, y: 10}
+            ];
+            direction = {x: 1, y: 0};
+            nextDirection = {x: 1, y: 0};
+            score = 0;
+            isPaused = false;
+            isGameOver = false;
+            //cheatMode = false;
+            cheatPath = [];
+            document.getElementById('score').textContent = score;
+            document.getElementById('gameOver').style.display = 'none';
+            spawnFood();
+        }
+
+        let headLoopMode = false
+        let headLoopState = 'none'
+        let headlooplen = 0
+        let tailspot = 1
+        let loopCount = 0
+        // BFS pathfinding to find shortest path to food
+        function findPathToFood() {
+            const head = snake[0];
+            const queue = [{x: head.x, y: head.y, path: []}];
+            const visited = new Set();
+            visited.add(`${head.x},${head.y}`);
+
+            // Create snake body set for collision checking
+            const snakeSet = new Set();
+            let maxY = 0;
+            // Don't include the tail as it will move
+            //for (let i = 0; i < snake.length - 1; i++) {
+            for (let i = 0; i < snake.length; i++) {
+                snakeSet.add(`${snake[i].x},${snake[i].y}`);
+                if (maxY < snake[i].y) maxY = snake[i].y;
+            }
+
+            if (loopSnakeMode) {
+                return loopSnake(head, snakeSet)
+            }
+
+            if (headLoopMode && headLoopTrace(maxY)) {
+                return loopSnake(head, snakeSet)
+            }
+
+            while (queue.length > 0) {
+                const current = queue.shift();
+
+                // Check if we reached the food
+                if (current.x === food.x && current.y === food.y) {
+                    restoreSpeed();
+                    return current.path;
+                }
+
+                // Explore neighbors
+                const directions = [
+                    {x: 0, y: -1}, // up
+                    {x: 0, y: 1},  // down
+                    {x: -1, y: 0}, // left
+                    {x: 1, y: 0}   // right
+                ];
+
+                for (let dir of directions) {
+                    const newX = current.x + dir.x;
+                    const newY = current.y + dir.y;
+                    const key = `${newX},${newY}`;
+
+                    // Check bounds
+                    if (newX < 0 || newX >= tileCount || newY < 0 || newY >= tileCount) {
+                        continue;
+                    }
+
+                    // Check if already visited
+                    if (visited.has(key)) {
+                        continue;
+                    }
+
+                    // Check if collides with snake body
+                    if (snakeSet.has(key)) {
+                        continue;
+                    }
+
+                    visited.add(key);
+                    const newPath = [...current.path, dir];
+                    queue.push({x: newX, y: newY, path: newPath});
+                }
+            }
+
+            //Manual control after a score threshold is achieved
+            if (score > loopLimitScore) {
+                setGameSpeed(900)
+                cheatMode = false;
+                togglePause()
+                return []
+            }
+            //No direct path, just decide next step
+            backUpSpeed(slomoSpeed);
+            return loopSnake(head, snakeSet)
+
+        }
+        function headLoopTrace(maxY) {
+            if (headlooplen > snake.length) headlooplen = snake.length;
+            if (headLoopState == 'none' && headlooplen < snake.length) {
+                //pick more on the way - without deviating to top
+                if (snake[0].x < food.x && snake[0].y > food.y) {
+                    if (snake[snake.length - 1].y < food.y)
+                        return false
+                }
+                headlooplen = snake.length
+                headLoopState = 'wait-head'
+                loopCount = 0
+            }
+            if (headLoopState == 'wait-head' && snake[0].y == 0) {
+                headLoopState = 'wait-tail'
+            }
+            //tail hits first row
+            if (snake.length > tileCount * 2)
+                tailspot = snake.length - tileCount
+            else
+                tailspot = snake.length - Math.floor(snake.length / 15 + 1)
+
+            if (headLoopState == 'wait-tail' && snake[tailspot].y == 0) {
+                headLoopState = 'wait-head-x0'
+            }
+            if (headLoopState == 'wait-head-x0') {
+                if (snake[0].x == 0) {
+                    if (snake[0].y >= maxY || snake[snake.length - 1].y == maxY) {
+                        headLoopState = 'none'
+                    } else if (snake[0].y + 1 == maxY) {
+                        if (loopCount >= 1) {
+                            headLoopState = 'none'
+                        } else {
+                            loopCount += 1
+                        }
+                    }
+                }
+                /* 
+                else if (snake[0].y >= maxY) {
+                    headLoopState = 'none'
+                }
+                */
+            }
+
+            if (snake.length > 60 && (headLoopState != 'none')) {
+                return true
+            }
+
+            return false
+        }
+        function loopSnake(head, snakeSet) {
+
+            // Explore neighbors
+            const aclock_directions = [
+                {x: 1, y: 0},  // right
+                {x: 0, y: -1}, // up
+                {x: -1, y: 0}, // left
+                {x: 0, y: 1},  // down
+            ];
+
+            const clock_directions = [
+                {x: -1, y: 0}, // left
+                {x: 0, y: -1}, // up
+                {x: 1, y: 0},  // right
+                {x: 0, y: 1},  // down
+            ];
+
+            let directions = (loopDir == 'aclock') ? aclock_directions : clock_directions;
+
+            for (let dir of directions) {
+                const newX = head.x + dir.x;
+                const newY = head.y + dir.y;
+                const key = `${newX},${newY}`;
+
+                // Check bounds
+                if (newX < 0 || newX >= tileCount || newY < 0 || newY >= tileCount) {
+                    continue;
+                }
+
+                // Check if collides with snake body
+                if (snakeSet.has(key)) {
+                    continue;
+                }
+
+                return [dir]
+
+            }
+            return []; // No path found
+        }
+
+        function spawnFood() {
+            food = {
+                x: Math.floor(Math.random() * tileCount),
+                y: Math.floor(Math.random() * tileCount)
+            };
+
+            // Make sure food doesn't spawn on snake
+            for (let segment of snake) {
+                if (segment.x === food.x && segment.y === food.y) {
+                    spawnFood();
+                    break;
+                }
+            }
+        }
+
+        function draw() {
+            // Clear canvas
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw grid (subtle)
+            ctx.strokeStyle = '#2a2a4e';
+            ctx.lineWidth = 0.5;
+            for (let i = 0; i <= tileCount; i++) {
+                ctx.beginPath();
+                ctx.moveTo(i * gridSize, 0);
+                ctx.lineTo(i * gridSize, canvas.height);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(0, i * gridSize);
+                ctx.lineTo(canvas.width, i * gridSize);
+                ctx.stroke();
+            }
+
+            // Draw snake
+            snake.forEach((segment, index) => {
+                const gradient = ctx.createLinearGradient(
+                    segment.x * gridSize,
+                    segment.y * gridSize,
+                    (segment.x + 1) * gridSize,
+                    (segment.y + 1) * gridSize
+                );
+
+                if (index === 0) {
+                    // Head - brighter
+                    gradient.addColorStop(0, '#4ecdc4');
+                    gradient.addColorStop(1, '#44a09d');
+                } else {
+                    // Body - slightly darker
+                    gradient.addColorStop(0, '#45b7aa');
+                    gradient.addColorStop(1, '#3a968f');
+                }
+                if (index % 2) {
+                    if (headLoopState == 'wait-head') gradient.addColorStop(0, 'red');
+                    if (headLoopState == 'wait-tail') gradient.addColorStop(0, 'blue');
+                    if (headLoopState == 'wait-head-x0') gradient.addColorStop(0, 'yellow');
+                }
+                if (index === tailspot) {
+                    gradient.addColorStop(0, '#00ff00');
+                    gradient.addColorStop(1, '#00ff00');
+                }
+
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.roundRect(
+                    segment.x * gridSize + 1,
+                    segment.y * gridSize + 1,
+                    gridSize - 2,
+                    gridSize - 2,
+                    4
+                );
+                ctx.fill();
+
+                // Draw eyes on head
+                if (index === 0) {
+                    ctx.fillStyle = '#1a1a2e';
+                    //ctx.fillStyle = 'red';
+                    const eyeOffset = gridSize / 4;
+                    const eyeSize = 3;
+
+                    if (direction.x === 1) { // Moving right
+                        ctx.beginPath();
+                        ctx.arc(segment.x * gridSize + gridSize - 6, segment.y * gridSize + 6, eyeSize, 0, Math.PI * 2);
+                        ctx.arc(segment.x * gridSize + gridSize - 6, segment.y * gridSize + gridSize - 6, eyeSize, 0, Math.PI * 2);
+                        ctx.fill();
+                    } else if (direction.x === -1) { // Moving left
+                        ctx.beginPath();
+                        ctx.arc(segment.x * gridSize + 6, segment.y * gridSize + 6, eyeSize, 0, Math.PI * 2);
+                        ctx.arc(segment.x * gridSize + 6, segment.y * gridSize + gridSize - 6, eyeSize, 0, Math.PI * 2);
+                        ctx.fill();
+                    } else if (direction.y === -1) { // Moving up
+                        ctx.beginPath();
+                        ctx.arc(segment.x * gridSize + 6, segment.y * gridSize + 6, eyeSize, 0, Math.PI * 2);
+                        ctx.arc(segment.x * gridSize + gridSize - 6, segment.y * gridSize + 6, eyeSize, 0, Math.PI * 2);
+                        ctx.fill();
+                    } else { // Moving down
+                        ctx.beginPath();
+                        ctx.arc(segment.x * gridSize + 6, segment.y * gridSize + gridSize - 6, eyeSize, 0, Math.PI * 2);
+                        ctx.arc(segment.x * gridSize + gridSize - 6, segment.y * gridSize + gridSize - 6, eyeSize, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+            });
+
+            // Draw food
+            const foodGradient = ctx.createRadialGradient(
+                food.x * gridSize + gridSize / 2,
+                food.y * gridSize + gridSize / 2,
+                0,
+                food.x * gridSize + gridSize / 2,
+                food.y * gridSize + gridSize / 2,
+                gridSize / 2
+            );
+            foodGradient.addColorStop(0, '#ff6b6b');
+            foodGradient.addColorStop(1, '#ee5a5a');
+
+            ctx.fillStyle = foodGradient;
+            ctx.beginPath();
+            ctx.arc(
+                food.x * gridSize + gridSize / 2,
+                food.y * gridSize + gridSize / 2,
+                gridSize / 2 - 2,
+                0,
+                Math.PI * 2
+            );
+            ctx.fill();
+
+            // Draw pause overlay
+            if (isPaused) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 48px Segoe UI';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('PAUSED', canvas.width / 2, canvas.height / 2);
+            }
+
+            // Draw cheat mode indicator
+            if (cheatMode) {
+                ctx.fillStyle = 'rgba(255, 215, 0, 0.3)';
+                ctx.fillRect(0, 0, canvas.width, 20);
+
+                ctx.fillStyle = '#ffd700';
+                ctx.font = 'bold 14px Segoe UI';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('🤖 CHEAT MODE - AUTO PILOT', 10, 10);
+
+                // Draw the path
+                if (cheatPath.length > 0) {
+                    ctx.strokeStyle = 'rgba(255, 215, 0, 0.5)';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+
+                    let pathX = snake[0].x;
+                    let pathY = snake[0].y;
+
+                    for (let step of cheatPath) {
+                        pathX += step.x;
+                        pathY += step.y;
+                        ctx.rect(pathX * gridSize + gridSize / 2, pathY * gridSize + 1, gridSize / 2, gridSize / 2);
+                    }
+                    ctx.stroke();
+                }
+            }
+        }
+
+        function update() {
+            if (isPaused || isGameOver) return;
+
+            // Cheat mode: follow the computed path
+            if (cheatMode) {
+                // Recalculate path if empty or we've reached the end
+                if (cheatPath.length === 0) {
+                    cheatPath = findPathToFood();
+                }
+
+                // If we have a path, consume the next step (override manual input)
+                if (cheatPath.length > 0) {
+                    nextDirection = cheatPath.shift(); // Remove and use first step
+                }
+            }
+
+            direction = {...nextDirection};
+
+            const head = {
+                x: snake[0].x + direction.x,
+                y: snake[0].y + direction.y
+            };
+
+            // Check wall collision
+            if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) {
+                gameOver();
+                return;
+            }
+
+            // Check self collision
+            for (let segment of snake) {
+                if (head.x === segment.x && head.y === segment.y) {
+                    gameOver();
+                    return;
+                }
+            }
+
+            snake.unshift(head);
+
+            // Check food collision
+            if (head.x === food.x && head.y === food.y) {
+                score += 10;
+                document.getElementById('score').textContent = score;
+                spawnFood();
+                // Clear path after eating so it recalculates
+                if (cheatMode) {
+                    cheatPath = [];
+                }
+            } else {
+                snake.pop();
+            }
+
+            // Recalculate path every frame in cheat mode if empty
+            if (cheatMode && cheatPath.length === 0) {
+                cheatPath = findPathToFood();
+            }
+
+            draw();
+        }
+
+        function gameOver() {
+            isGameOver = true;
+
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('snakeHighScore', highScore);
+                document.getElementById('highScore').textContent = highScore;
+            }
+
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('gameOver').style.display = 'block';
+
+            if (score < loopLimitScore)
+                setTimeout(resetGame, 5000)
+        }
+
+        function resetGame() {
+            if (gameLoop) {
+                clearInterval(gameLoop);
+            }
+            initGame();
+            updateSpeedDisplay();
+            draw();
+            gameLoop = setInterval(update, gameSpeed);
+        }
+
+        function togglePause() {
+            isPaused = !isPaused;
+            draw();
+        }
+
+        // Keyboard controls
+        document.addEventListener('keydown', (e) => {
+            switch (e.key) {
+                case 'ArrowUp':
+                case 'w':
+                case 'W':
+                    // Only allow manual control if cheat mode is off
+                    if (!cheatMode && direction.y !== 1) {
+                        nextDirection = {x: 0, y: -1};
+                    }
+                    e.preventDefault();
+                    break;
+                case 'ArrowDown':
+                case 's':
+                case 'S':
+                    // Only allow manual control if cheat mode is off
+                    if (!cheatMode && direction.y !== -1) {
+                        nextDirection = {x: 0, y: 1};
+                    }
+                    e.preventDefault();
+                    break;
+                case 'ArrowLeft':
+                case 'a':
+                case 'A':
+                    // Only allow manual control if cheat mode is off
+                    if (!cheatMode && direction.x !== 1) {
+                        nextDirection = {x: -1, y: 0};
+                    }
+                    e.preventDefault();
+                    break;
+                case 'ArrowRight':
+                case 'd':
+                case 'D':
+                    // Only allow manual control if cheat mode is off
+                    if (!cheatMode && direction.x !== -1) {
+                        nextDirection = {x: 1, y: 0};
+                    }
+                    e.preventDefault();
+                    break;
+                case ' ':
+                    togglePause();
+                    e.preventDefault();
+                    break;
+                //case 'r':
+                case 'R':
+                    resetGame();
+                    e.preventDefault();
+                    break;
+                case 'j':
+                case 'J':
+                    loopDir = 'clock';
+                    updateSpeedDisplay();
+                    break;
+                case 'l':
+                case 'L':
+                    loopDir = 'aclock';
+                    updateSpeedDisplay();
+                    break;
+                case 'k':
+                case 'K':
+                    loopSnakeMode = !loopSnakeMode;
+                    cheatPath = [];
+                    updateSpeedDisplay();
+                    break;
+                case 'i':
+                case 'I':
+                    headLoopMode = !headLoopMode;
+                    break;
+
+                case 't':
+                case 'T':
+                    cheatMode = !cheatMode;
+                    if (cheatMode) {
+                        cheatPath = [];
+                    }
+                    draw();
+                    e.preventDefault();
+                    break;
+                case '1':
+                    setGameSpeed(100); // Fastest preset
+                    e.preventDefault();
+                    break;
+                case '2':
+                    setGameSpeed(200);
+                    e.preventDefault();
+                    break;
+                case '3':
+                    setGameSpeed(300);
+                    e.preventDefault();
+                    break;
+                case '4':
+                    setGameSpeed(400);
+                    e.preventDefault();
+                    break;
+                case '5':
+                    setGameSpeed(500); // Default
+                    e.preventDefault();
+                    break;
+                case '6':
+                    setGameSpeed(600);
+                    e.preventDefault();
+                    break;
+                case '7':
+                    setGameSpeed(700);
+                    e.preventDefault();
+                    break;
+                case '8':
+                    setGameSpeed(800);
+                    e.preventDefault();
+                    break;
+                case '9':
+                    setGameSpeed(900); // Slowest preset
+                    e.preventDefault();
+                    break;
+                case '[':
+                    setGameSpeed(gameSpeed + 50);
+                    e.preventDefault();
+                    break;
+                case ']':
+                    setGameSpeed(gameSpeed - 50);
+                    e.preventDefault();
+                    break;
+            }
+        });
+
+        // Initialize and start game
+        initGame();
+        updateSpeedDisplay();
+        draw();
+        gameLoop = setInterval(update, gameSpeed);
+
+        // Expose resetGame to global scope for the button
+        window.resetGame = resetGame;
+    </script>
+</body>
+
+</html>
